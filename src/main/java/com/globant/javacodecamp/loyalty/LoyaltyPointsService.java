@@ -25,14 +25,24 @@ public class LoyaltyPointsService {
   }
 
   public List<Reward> process(Map<Long, Integer> pointsPerUser) {
+    var customerPoints = addCustomerPoints(pointsPerUser);
+    return redeemPoints(customerPoints);
+  }
+
+  public List<CustomerPoints> addCustomerPoints(Map<Long, Integer> pointsPerUser) {
     var customerIds = pointsPerUser.keySet();
     var customerPoints = customerPointsRepository.findAll(cp -> customerIds.contains(cp.customerId()) && cp.dateCreated().isAfter(LocalDate.now().minusMonths(2).minusDays(1)))
             .stream().collect(Collectors.toMap(CustomerPoints::customerId, Function.identity()));
-
     return pointsPerUser.entrySet()
             .stream()
             .map(entry -> addNewCustomerPoints(customerPoints, entry))
-            .map(this::redeemRewards)
+            .map(customerPointsRepository::saveOrUpdate)
+            .toList();
+  }
+
+  public List<Reward> redeemPoints(List<CustomerPoints> customerPoints) {
+    return customerPoints.stream()
+            .map(this::redeemPoints)
             .map(this::save)
             .map(RewardWithCustomerPoints::reward)
             .filter(Objects::nonNull)
@@ -41,20 +51,16 @@ public class LoyaltyPointsService {
 
   private RewardWithCustomerPoints save(RewardWithCustomerPoints rewardWithCustomerPoints) {
     Reward reward = null;
-    CustomerPoints customerPoints;
+    CustomerPoints customerPoints = customerPointsRepository.saveOrUpdate(rewardWithCustomerPoints.customerPoints());;
+
     if (rewardWithCustomerPoints.reward() != null) {
       reward = rewardRepository.save(rewardWithCustomerPoints.reward());
     }
-    if (rewardWithCustomerPoints.customerPoints().id() == 0) {
-      customerPoints = customerPointsRepository.save(rewardWithCustomerPoints.customerPoints());
-    } else {
-      customerPointsRepository.update(rewardWithCustomerPoints.customerPoints());
-      customerPoints = rewardWithCustomerPoints.customerPoints;
-    }
+
     return new RewardWithCustomerPoints(reward, customerPoints);
   }
 
-  private RewardWithCustomerPoints redeemRewards(CustomerPoints cp) {
+  private RewardWithCustomerPoints redeemPoints(CustomerPoints cp) {
     Reward reward;
     var dateValid = LocalDate.now().plusMonths(2);
     if (cp.points() >= 150 && cp.points() < 300 && cp.dateCreated().isEqual(LocalDate.now().minusMonths(2))) {

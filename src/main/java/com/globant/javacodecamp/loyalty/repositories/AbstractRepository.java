@@ -27,6 +27,14 @@ public abstract class AbstractRepository<T extends Entity<T>> {
             .collect(Collectors.joining(","));
   }
 
+  public T saveOrUpdate(T entity) {
+    if (entity.id() == 0) {
+      return save(entity);
+    }
+    update(entity);
+    return entity;
+  }
+
   public T save(T entity) {
     String sql = """
             INSERT INTO %s (%s)
