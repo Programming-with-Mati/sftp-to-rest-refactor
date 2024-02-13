@@ -1,0 +1,13 @@
+---
+version: '2'
+
+services:
+  mysql:
+    image: mysql:8.0.32
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./files/mysql:/docker-entrypoint-initdb.d

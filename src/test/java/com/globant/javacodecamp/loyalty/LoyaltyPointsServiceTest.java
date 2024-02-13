@@ -1,7 +1,8 @@
 package com.globant.javacodecamp.loyalty;
 
 import com.globant.javacodecamp.loyalty.model.CustomerPoints;
-import com.globant.javacodecamp.loyalty.utils.CustomerPointsRepository;
+import com.globant.javacodecamp.loyalty.repositories.CustomerPointsRepository;
+import com.globant.javacodecamp.loyalty.repositories.RewardRepository;
 import com.globant.javacodecamp.loyalty.utils.SftpUtils;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,7 @@ import org.testcontainers.utility.MountableFile;
 
 import java.time.LocalDate;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Testcontainers
 class LoyaltyPointsServiceTest {
@@ -28,23 +29,23 @@ class LoyaltyPointsServiceTest {
   void testWhenCustomerDoesntHavePoints() throws Exception {
     sftp.start();
     var customerPointsRepository = new CustomerPointsRepository(mysql.getJdbcUrl());
+    var rewardRepository = new RewardRepository(mysql.getJdbcUrl());
     var username = "test";
     var password = "pass";
     var port = sftp.getMappedPort(22);
     var host = sftp.getHost();
+    var fileReader = new SftpCustomerTransactionFileReader(username, password, port, host);
     var loyaltyPointsService = new LoyaltyPointsService(
-            username,
-            password,
-            port,
-            host,
-            mysql.getJdbcUrl()
+            customerPointsRepository,
+            rewardRepository
     );
     var fileContent = """
             2,10""";
 
     SftpUtils.uploadFileToSftp(username, password, port, host, fileContent, "/upload/customer-transactions/customers.csv");
 
-    var rewards = loyaltyPointsService.process();
+    var pointsByUser = fileReader.readCustomerTransactionsFile();
+    var rewards = loyaltyPointsService.process(pointsByUser);
 
     System.out.println(rewards);
 
@@ -59,24 +60,25 @@ class LoyaltyPointsServiceTest {
   void testWhenCustomerHasPointsButNotEnoughTimePassed() throws Exception {
     sftp.start();
     var customerPointsRepository = new CustomerPointsRepository(mysql.getJdbcUrl());
-    customerPointsRepository.save(new CustomerPoints(0, 140, LocalDate.now().minusMonths(1), 2));
+    var rewardRepository = new RewardRepository(mysql.getJdbcUrl());
     var username = "test";
     var password = "pass";
     var port = sftp.getMappedPort(22);
     var host = sftp.getHost();
+    var fileReader = new SftpCustomerTransactionFileReader(username, password, port, host);
     var loyaltyPointsService = new LoyaltyPointsService(
-            username,
-            password,
-            port,
-            host,
-            mysql.getJdbcUrl()
+            customerPointsRepository,
+            rewardRepository
     );
+
     var fileContent = """
             2,10""";
 
     SftpUtils.uploadFileToSftp(username, password, port, host, fileContent, "/upload/customer-transactions/customers.csv");
+    customerPointsRepository.save(new CustomerPoints(0, 140, LocalDate.now().minusMonths(1), 2));
 
-    var rewards = loyaltyPointsService.process();
+    var pointsByUser = fileReader.readCustomerTransactionsFile();
+    var rewards = loyaltyPointsService.process(pointsByUser);
 
     System.out.println(rewards);
     assertEquals(0,rewards.size());
@@ -92,24 +94,25 @@ class LoyaltyPointsServiceTest {
   void testWhenCustomerHasPointsEnoughTimePassed() throws Exception {
     sftp.start();
     var customerPointsRepository = new CustomerPointsRepository(mysql.getJdbcUrl());
-    customerPointsRepository.save(new CustomerPoints(0, 140, LocalDate.now().minusMonths(2), 2));
+    var rewardRepository = new RewardRepository(mysql.getJdbcUrl());
     var username = "test";
     var password = "pass";
     var port = sftp.getMappedPort(22);
     var host = sftp.getHost();
+    var fileReader = new SftpCustomerTransactionFileReader(username, password, port, host);
     var loyaltyPointsService = new LoyaltyPointsService(
-            username,
-            password,
-            port,
-            host,
-            mysql.getJdbcUrl()
+            customerPointsRepository,
+            rewardRepository
     );
+
     var fileContent = """
             2,10""";
 
     SftpUtils.uploadFileToSftp(username, password, port, host, fileContent, "/upload/customer-transactions/customers.csv");
+    customerPointsRepository.save(new CustomerPoints(0, 140, LocalDate.now().minusMonths(2), 2));
 
-    var rewards = loyaltyPointsService.process();
+    var pointsByUser = fileReader.readCustomerTransactionsFile();
+    var rewards = loyaltyPointsService.process(pointsByUser);
 
     System.out.println(rewards);
     assertEquals(1,rewards.size());

@@ -1,4 +1,4 @@
-package com.globant.javacodecamp.loyalty.utils;
+package com.globant.javacodecamp.loyalty.repositories;
 
 import com.globant.javacodecamp.loyalty.model.Reward;
 

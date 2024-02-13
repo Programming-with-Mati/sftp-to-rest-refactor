@@ -1,11 +1,13 @@
-package com.globant.javacodecamp.loyalty.utils;
+package com.globant.javacodecamp.loyalty.repositories;
 
+import com.globant.javacodecamp.loyalty.model.CustomerPoints;
 import com.globant.javacodecamp.loyalty.model.Entity;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public abstract class AbstractRepository<T extends Entity<T>> {
@@ -60,6 +62,33 @@ public abstract class AbstractRepository<T extends Entity<T>> {
     return result;
   }
 
+  public void update(T entity) {
+    String sql = """
+                      UPDATE %s
+                      SET %s
+                      WHERE id =?;""".formatted(table, getUpdateSection(columns));
+    try (Connection connection = createConnection();
+       PreparedStatement statement = connection.prepareStatement(sql)) {
+       setStatementParams(statement, entity);
+       statement.setLong(columns.split(",").length + 1, entity.id());
+       statement.executeUpdate();
+    } catch (SQLException e) {
+      throw new RuntimeException("Error reading database", e);
+    }
+  }
+
+  private String getUpdateSection(String columns) {
+    return Arrays.stream(columns.split(","))
+            .map("%s = ?"::formatted)
+            .collect(Collectors.joining(","));
+  }
+
+  public List<T> findAll(Predicate<T> condition) {
+    return findAll().stream()
+            .filter(condition)
+            .toList();
+  }
+
   protected abstract T mapResultSetToEntity(ResultSet resultSet) throws SQLException;
 
   protected Connection createConnection() throws SQLException {
@@ -71,4 +100,6 @@ public abstract class AbstractRepository<T extends Entity<T>> {
     return DriverManager
             .getConnection(connectionString, "root", "test");
   }
+
+
 }

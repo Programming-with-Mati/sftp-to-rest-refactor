@@ -1,4 +1,4 @@
-package com.globant.javacodecamp.loyalty.utils;
+package com.globant.javacodecamp.loyalty.repositories;
 
 import com.globant.javacodecamp.loyalty.model.CustomerPoints;
 
@@ -28,4 +28,6 @@ public class CustomerPointsRepository extends AbstractRepository<CustomerPoints>
             resultSet.getLong("customer_id")
     );
   }
+
+
 }
